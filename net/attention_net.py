@@ -1,25 +1,48 @@
-import mxnet as mx
-from mxnet import gluon
-from mxnet.gluon import HybridBlock, nn
-from mxnet.gluon.model_zoo.vision.resnet import BottleneckV2
-from net.attention_block import AttentionBlock
+# MIT License
+#
+# Copyright (c) 2018 Haoxintong
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+"""Residual Attention network, implemented in Gluon."""
+
+from mxnet.gluon import nn
+from .attention_block import BottleneckV2, AttentionBlock
+
+__all__ = ["AttentionNet56"]
 
 
-class AttentionNet56(HybridBlock):
-    r"""ResAttentionNet 56
+class AttentionNet56(nn.HybridBlock):
+    r"""AttentionNet 56 Model from
     `"Residual Attention Network for Image Classification"
     <https://arxiv.org/abs/1704.06904>`_ paper.
 
     Parameters
     ----------
-
+    :param classes: int. Number of classification classes.
+    :param kwargs:
 
     """
 
     def __init__(self, classes, **kwargs):
         super().__init__(**kwargs)
         with self.name_scope():
-            self.features = gluon.nn.HybridSequential()
+            self.features = nn.HybridSequential()
             # 112x112
             self.features.add(nn.Conv2D(64, 7, 2, 3, use_bias=False))
             self.features.add(nn.BatchNorm())
@@ -28,15 +51,15 @@ class AttentionNet56(HybridBlock):
             # 56x56
             self.features.add(nn.MaxPool2D(3, 2, 1))
             self.features.add(BottleneckV2(256, 1, True, 64),
-                              AttentionBlock(256))
+                              AttentionBlock(256, 56, stage=1, p=1, t=2, r=1))
 
             # 28x28
             self.features.add(BottleneckV2(512, 2, True, 256),
-                              AttentionBlock(512))
+                              AttentionBlock(512, 28, stage=2, p=1, t=2, r=1))
 
             # 14x14
             self.features.add(BottleneckV2(1024, 2, True, 512),
-                              AttentionBlock(1024))
+                              AttentionBlock(1024, 14, stage=3, p=1, t=2, r=1))
 
             # 7x7
             self.features.add(BottleneckV2(2048, 2, True, 1024),
@@ -54,11 +77,3 @@ class AttentionNet56(HybridBlock):
         x = self.features(x)
         x = self.output(x)
         return x
-
-
-if __name__ == '__main__':
-    xi = mx.nd.ones(shape=(1, 3, 224, 224))
-    net = AttentionNet56(2)
-    net.initialize()
-    y = net(xi)
-    print(y.shape)
