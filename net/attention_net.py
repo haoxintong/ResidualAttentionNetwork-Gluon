@@ -24,7 +24,7 @@
 from mxnet.gluon import nn
 from .attention_block import BottleneckV2, AttentionBlock
 
-__all__ = ["AttentionNet56"]
+__all__ = ["AttentionNet56", "AttentionNet92"]
 
 
 class AttentionNet56(nn.HybridBlock):
@@ -67,7 +67,9 @@ class AttentionNet56(nn.HybridBlock):
                               BottleneckV2(2048, 1))
 
             # 2048
-            self.features.add(nn.GlobalAvgPool2D(),
+            self.features.add(nn.BatchNorm(),
+                              nn.Activation('relu'),
+                              nn.GlobalAvgPool2D(),
                               nn.Flatten())
 
             # classes
@@ -77,3 +79,61 @@ class AttentionNet56(nn.HybridBlock):
         x = self.features(x)
         x = self.output(x)
         return x
+
+
+class AttentionNet92(nn.HybridBlock):
+    r"""AttentionNet 92 Model from
+    `"Residual Attention Network for Image Classification"
+    <https://arxiv.org/abs/1704.06904>`_ paper.
+
+    Parameters
+    ----------
+    :param classes: int. Number of classification classes.
+    :param kwargs:
+
+    """
+
+    def __init__(self, classes, **kwargs):
+        super().__init__(**kwargs)
+        with self.name_scope():
+            self.features = nn.HybridSequential()
+            # 112x112
+            self.features.add(nn.Conv2D(64, 7, 2, 3, use_bias=False))
+            self.features.add(nn.BatchNorm())
+            self.features.add(nn.Activation('relu'))
+
+            # 56x56
+            self.features.add(nn.MaxPool2D(3, 2, 1))
+            self.features.add(BottleneckV2(256, 1, True, 64),
+                              AttentionBlock(256, 56, stage=1, p=1, t=2, r=1))
+
+            # 28x28
+            self.features.add(BottleneckV2(512, 2, True, 256),
+                              AttentionBlock(512, 28, stage=2, p=1, t=2, r=1),
+                              AttentionBlock(512, 28, stage=2, p=1, t=2, r=1))
+
+            # 14x14
+            self.features.add(BottleneckV2(1024, 2, True, 512),
+                              AttentionBlock(1024, 14, stage=3, p=1, t=2, r=1),
+                              AttentionBlock(1024, 14, stage=3, p=1, t=2, r=1),
+                              AttentionBlock(1024, 14, stage=3, p=1, t=2, r=1))
+
+            # 7x7
+            self.features.add(BottleneckV2(2048, 2, True, 1024),
+                              BottleneckV2(2048, 1),
+                              BottleneckV2(2048, 1))
+
+            # 2048
+            self.features.add(nn.BatchNorm(),
+                              nn.Activation('relu'),
+                              nn.GlobalAvgPool2D(),
+                              nn.Flatten())
+
+            # classes
+            self.output = nn.Dense(classes)
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        x = self.features(x)
+        x = self.output(x)
+        return x
+
