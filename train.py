@@ -115,9 +115,9 @@ def train(args):
 
     step = 0
     lr_counter = 0
-    lr_steps = [64000, 96000]
+    lr_steps = [int(s) for s in args.lr_steps.split(',')]
     num_batch = len(train_data)
-    while step < 160000:
+    while step < args.iterations:
 
         train_loss = 0
         metric.reset()
@@ -160,7 +160,7 @@ def train(args):
                      'val accuracy: %.3f, val loss: %.3f, time: %.1f'
                      % (step, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
 
-    net.export("./models/cifar10-model")
+    net.export("./models/cifar10-model-%s" % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S'))
     sw.close()
     logging.info("Train End.")
 
