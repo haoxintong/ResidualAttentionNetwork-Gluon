@@ -55,7 +55,6 @@ def parse_args():
                         help='momentum')
     parser.add_argument('--weight-decay', '--wd', dest='wd', default=1e-4, type=float,
                         help='weight decay (default: 1e-4)')
-
     parser.add_argument('--lr-steps', default='64000,96000', type=str,
                         help='list of learning rate decay steps as in str')
     args = parser.parse_args()
@@ -89,7 +88,7 @@ def train(args):
     train_set = ImageFolderDataset(os.path.join(args.data_root, "train"), transform=transform_train)
     train_data = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
                             last_batch='discard')
-    val_set = ImageFolderDataset(os.path.join(args.data_root, "test"), transform=transform_train)
+    val_set = ImageFolderDataset(os.path.join(args.data_root, "test"), transform=transform_val)
     val_data = DataLoader(val_set, args.batch_size, False, num_workers=args.num_workers)
 
     # set the network and trainer
@@ -108,10 +107,10 @@ def train(args):
     logging.basicConfig(level=logging.INFO,
                         handlers=[
                             logging.StreamHandler(),
-                            logging.FileHandler(os.path.join(args.log_root, 'text/cifar10_%s.log')
+                            logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_%s.log')
                                                 % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S'))
                         ])
-    sw = SummaryWriter(logdir=os.path.join(args.log_root, 'board/cifar10_%s'
+    sw = SummaryWriter(logdir=os.path.join(args.log_dir, 'board/cifar10_%s'
                                            % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')))
 
     step = 0
