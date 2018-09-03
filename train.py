@@ -40,13 +40,13 @@ def parse_args():
     parser.add_argument('--data-root', required=True, type=str,
                         help='root dir of the cifar-10 dataset, it should contain train and test')
     parser.add_argument("--log-dir", type=str, default="./log",
-                        help="dataset; wiki or imdb")
+                        help="where to save log")
     parser.add_argument('-j', '--workers', dest='num_workers', default=4, type=int,
                         help='number of preprocessing workers')
     parser.add_argument('--num-gpus', default=2, type=int,
                         help='number of gpus to use, 0 indicates cpu only')
     parser.add_argument('--iterations', default=160000, type=int,
-                        help='number of training epochs')
+                        help='number of training iterations')
     parser.add_argument('-b', '--batch-size', default=64, type=int,
                         help='mini-batch size')
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
@@ -115,7 +115,7 @@ def train(args):
 
     step = 0
     lr_counter = 0
-    lr_steps = [int(s) for s in args.lr_steps.split(',')]
+    lr_steps = [int(s) for s in args.lr_steps.strip().split(',')]
     num_batch = len(train_data)
     while step < args.iterations:
 
