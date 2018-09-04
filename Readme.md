@@ -34,9 +34,10 @@ Most parameters is set to keep same with settings in paper. To view the training
 tensorboard --logdir=./log/board/cifar10_20180831183421 --host=0.0.0.0 --port=8888
 ```
 
-|Results|Accuracy|Loss |
-|:---:  |:---:   |:---:|
-|Attention56|<img src="data/attention56-cifar10-accuracy.png"/>|<img src="data/attention56-cifar10-loss.png"/>|
+|Results|Accuracy|Loss |Val Accuracy|
+|:---:  |:---:   |:---:|:---:       |
+|Attention56|<img src="data/attention56-cifar10-accuracy.png"/>|<img src="data/attention56-cifar10-loss.png"/>|0.9310|
+|Attention92|<img src="data/attention92-cifar10-accuracy.png"/>|<img src="data/attention92-cifar10-loss.png"/>|0.9360|
 
 ## TODO
 - [x] train scripts
