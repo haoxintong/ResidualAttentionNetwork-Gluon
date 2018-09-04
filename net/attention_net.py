@@ -24,7 +24,7 @@
 from mxnet.gluon import nn
 from .attention_block import BottleneckV2, AttentionBlock
 
-__all__ = ["AttentionNet56", "AttentionNet92", "AttentionNet56Cifar"]
+__all__ = ["AttentionNet56", "AttentionNet92", "AttentionNet56Cifar", "AttentionNet92Cifar"]
 
 
 class AttentionNet56(nn.HybridBlock):
@@ -169,6 +169,62 @@ class AttentionNet56Cifar(nn.HybridBlock):
 
             # 4x4
             self.features.add(BottleneckV2(512, 2, True, 256),
+                              AttentionBlock(512, 4, stage=3, p=1, t=2, r=1))
+
+            # 4x4
+            self.features.add(BottleneckV2(1024, 2, True, 512),
+                              BottleneckV2(1024, 1),
+                              BottleneckV2(1024, 1))
+
+            # 2048
+            self.features.add(nn.BatchNorm(),
+                              nn.Activation('relu'),
+                              nn.GlobalAvgPool2D(),
+                              nn.Flatten())
+
+            # classes
+            self.output = nn.Dense(classes)
+
+    def hybrid_forward(self, F, x, *args, **kwargs):
+        x = self.features(x)
+        x = self.output(x)
+        return x
+
+
+class AttentionNet92Cifar(nn.HybridBlock):
+    r"""
+    AttentionNet 92 Model for input 32x32.
+
+    Parameters
+    ----------
+    :param classes: int. Number of classification classes.
+    :param kwargs:
+
+    """
+
+    def __init__(self, classes, **kwargs):
+        super().__init__(**kwargs)
+        with self.name_scope():
+            self.features = nn.HybridSequential()
+            # 32x32
+            self.features.add(nn.Conv2D(32, 5, 1, 2, use_bias=False))
+            self.features.add(nn.BatchNorm())
+            self.features.add(nn.Activation('relu'))
+
+            # 16x16
+            self.features.add(nn.MaxPool2D(2, 2, 0))
+            self.features.add(BottleneckV2(128, 1, True, 32),
+                              AttentionBlock(128, 16, stage=1, p=1, t=2, r=1))
+
+            # 8x8
+            self.features.add(BottleneckV2(256, 2, True, 128),
+                              AttentionBlock(256, 8, stage=2, p=1, t=2, r=1),
+                              AttentionBlock(256, 8, stage=2, p=1, t=2, r=1))
+
+            # 4x4
+            self.features.add(BottleneckV2(512, 2, True, 256),
+                              AttentionBlock(512, 4, stage=3, p=1, t=2, r=1),
+                              AttentionBlock(512, 4, stage=3, p=1, t=2, r=1),
                               AttentionBlock(512, 4, stage=3, p=1, t=2, r=1))
 
             # 4x4
