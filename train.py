@@ -30,8 +30,8 @@ from datetime import datetime
 from mxnet import image, nd, gluon, metric as mtc, autograd as ag
 from mxboard import SummaryWriter
 from mxnet.gluon.data import DataLoader
-from mxnet.gluon.data.vision import ImageFolderDataset
-from net.attention_net import AttentionNet56Cifar
+from utils.cifar_dataset import CifarDataset
+from net.attention_net import AttentionNet92Cifar
 
 
 def parse_args():
@@ -85,15 +85,15 @@ def transform_val(data, label):
 
 def train(args):
     # load_data
-    train_set = ImageFolderDataset(os.path.join(args.data_root, "train"), transform=transform_train)
+    train_set = CifarDataset(args.data_root, is_train=True, transform=transform_train)
     train_data = DataLoader(train_set, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers,
                             last_batch='discard')
-    val_set = ImageFolderDataset(os.path.join(args.data_root, "test"), transform=transform_val)
+    val_set = CifarDataset(args.data_root, is_train=False, transform=transform_val)
     val_data = DataLoader(val_set, args.batch_size, False, num_workers=args.num_workers)
 
     # set the network and trainer
     ctx = [mx.gpu(i) for i in range(args.num_gpus)] if args.num_gpus > 0 else [mx.cpu()]
-    net = AttentionNet56Cifar(10)
+    net = AttentionNet92Cifar(10)
     net.initialize(init=mx.initializer.MSRAPrelu(), ctx=ctx)
     net.hybridize()
 
@@ -108,10 +108,10 @@ def train(args):
                         handlers=[
                             logging.StreamHandler(),
                             logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_%s.log')
-                                                % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S'))
+                                                % datetime.strftime(datetime.now(), '%Y%m%d%H%M'))
                         ])
     sw = SummaryWriter(logdir=os.path.join(args.log_dir, 'board/cifar10_%s'
-                                           % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S')))
+                                           % datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
 
     step = 0
     lr_counter = 0
@@ -160,7 +160,7 @@ def train(args):
                      'val accuracy: %.3f, val loss: %.3f, time: %.1f'
                      % (step, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
 
-    net.export("./models/cifar10-model-%s" % datetime.strftime(datetime.now(), '%Y%m%d%H%M%S'))
+    net.export("./models/cifar10-model-%s" % datetime.strftime(datetime.now(), '%Y%m%d%H%M'))
     sw.close()
     logging.info("Train End.")
 
