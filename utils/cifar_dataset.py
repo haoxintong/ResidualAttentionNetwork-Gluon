@@ -27,6 +27,8 @@ import numpy as np
 from mxnet import nd
 from mxnet.gluon.data import Dataset
 
+__all__ = ["CifarDataset"]
+
 
 class CifarDataset(Dataset):
     def __init__(self, root, is_train, flag=1, transform=None):
