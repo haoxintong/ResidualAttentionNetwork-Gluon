@@ -31,7 +31,7 @@ from mxnet import image, nd, gluon, metric as mtc, autograd as ag
 from mxboard import SummaryWriter
 from mxnet.gluon.data import DataLoader
 from utils.cifar_dataset import CifarDataset
-from net.attention_net import AttentionNet92Cifar
+from net.attention_net import AttentionNet56Cifar
 
 
 def parse_args():
@@ -45,8 +45,8 @@ def parse_args():
                         help='number of preprocessing workers')
     parser.add_argument('--num-gpus', default=2, type=int,
                         help='number of gpus to use, 0 indicates cpu only')
-    parser.add_argument('--iterations', default=160000, type=int,
-                        help='number of training iterations')
+    parser.add_argument('--epochs', default=100, type=int,
+                        help='number of training epochs')
     parser.add_argument('-b', '--batch-size', default=64, type=int,
                         help='mini-batch size')
     parser.add_argument('--lr', '--learning-rate', default=0.1, type=float,
@@ -55,30 +55,35 @@ def parse_args():
                         help='momentum')
     parser.add_argument('--weight-decay', '--wd', dest='wd', default=1e-4, type=float,
                         help='weight decay (default: 1e-4)')
-    parser.add_argument('--lr-steps', default='64000,96000', type=str,
+    parser.add_argument('--lr-steps', default='40,60,80', type=str,
                         help='list of learning rate decay steps as in str')
     args = parser.parse_args()
     return args
 
 
-rand_mirror = image.HorizontalFlipAug(0.5)
-mean = nd.array([0.4914, 0.4822, 0.4465])
-norm = image.ColorNormalizeAug(mean, None)
+train_auglist = image.CreateAugmenter(data_shape=(3, 32, 32),
+                                      rand_crop=True, rand_mirror=True,
+                                      brightness=0.3, contrast=0.3,
+                                      saturation=0.3, hue=0.3, pca_noise=0.01,
+                                      mean=nd.array([0.4914, 0.4822, 0.4465]),
+                                      std=nd.array([0.2023, 0.1994, 0.2010]))
+val_auglist = image.CreateAugmenter(data_shape=(3, 32, 32), mean=nd.array([0.4914, 0.4822, 0.4465]),
+                                    std=nd.array([0.2023, 0.1994, 0.2010]))
 
 
 def transform_train(data, label):
     im = data.astype('float32') / 255
-    im = norm(im)
     im = image.copyMakeBorder(im, 4, 4, 4, 4)
-    im, _ = image.random_crop(im, (32, 32))
-    im = rand_mirror(im)
+    for aug in train_auglist:
+        im = aug(im)
     im = nd.transpose(im, (2, 0, 1))
     return im, label
 
 
 def transform_val(data, label):
     im = data.astype('float32') / 255
-    im = norm(im)
+    for aug in val_auglist:
+        im = aug(im)
     im = nd.transpose(im, (2, 0, 1))
     return im, label
 
@@ -93,7 +98,7 @@ def train(args):
 
     # set the network and trainer
     ctx = [mx.gpu(i) for i in range(args.num_gpus)] if args.num_gpus > 0 else [mx.cpu()]
-    net = AttentionNet92Cifar(10)
+    net = AttentionNet56Cifar(10)
     net.initialize(init=mx.initializer.MSRAPrelu(), ctx=ctx)
     net.hybridize()
 
@@ -104,29 +109,29 @@ def train(args):
     metric = mtc.Accuracy()
 
     # set log output
-    logging.basicConfig(level=logging.INFO,
-                        handlers=[
-                            logging.StreamHandler(),
-                            logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_%s.log')
-                                                % datetime.strftime(datetime.now(), '%Y%m%d%H%M'))
-                        ])
+    logger = logging.getLogger('TRAIN')
+    logger.setLevel("INFO")
+    logger.addHandler(logging.StreamHandler())
+    logger.addHandler(logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_%s.log')
+                                          % datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
     sw = SummaryWriter(logdir=os.path.join(args.log_dir, 'board/cifar10_%s'
-                                           % datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
+                                           % datetime.strftime(datetime.now(), '%Y%m%d%H%M')), verbose=False)
 
-    step = 0
+    # record the training hyper parameters
+    logger.info("--epochs {} --batch-size {} --lr {} --lr-steps {}"
+                .format(args.epochs, args.batch_size, args.lr, args.lr_steps))
     lr_counter = 0
     lr_steps = [int(s) for s in args.lr_steps.strip().split(',')]
     num_batch = len(train_data)
-    while step < args.iterations:
-
+    for epoch in range(args.epochs):
+        if epoch == lr_steps[lr_counter]:
+            trainer.set_learning_rate(trainer.learning_rate * 0.1)
+            if lr_counter + 1 < len(lr_steps):
+                lr_counter += 1
         train_loss = 0
         metric.reset()
         tic = time.time()
         for i, batch in enumerate(train_data):
-            if step == lr_steps[lr_counter]:
-                trainer.set_learning_rate(trainer.learning_rate * 0.1)
-                if lr_counter + 1 < len(lr_steps):
-                    lr_counter += 1
 
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
@@ -140,29 +145,23 @@ def train(args):
             trainer.step(args.batch_size)
             metric.update(labels, outputs)
 
-            batch_loss = sum([l.mean().asscalar() for l in losses]) / len(losses)
-            train_loss += batch_loss
-
-            _, batch_acc = metric.get()
-            sw.add_scalar("Loss", ('train', batch_loss), step)
-
-            if (step % 20000) == 0 and step != 0:
-                net.save_parameters("./models/cifar10_iter%d.params" % step)
-            step += 1
+            train_loss += sum([l.mean().asscalar() for l in losses]) / len(losses)
 
         _, train_acc = metric.get()
         train_loss /= num_batch
         val_acc, val_loss = validate(net, val_data, ctx)
-
-        sw.add_scalar("Loss", ('val', val_loss), step)
-        sw.add_scalar("Accuracy", {'train': train_acc, 'val': val_acc}, step)
-        logging.info('[Iteration %d] train accuracy: %.3f, train loss: %.3f | '
-                     'val accuracy: %.3f, val loss: %.3f, time: %.1f'
-                     % (step, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
+        sw.add_scalar("AttentionNet/Loss", {'train': train_loss, 'val': val_loss}, epoch)
+        sw.add_scalar("AttentionNet/Accuracy", {'train': train_acc, 'val': val_acc}, epoch)
+        logger.info('[Epoch %d] train accuracy: %.3f, train loss: %.3f | '
+                    'val accuracy: %.3f, val loss: %.3f, time: %.1f'
+                    % (epoch, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
+        if (epoch % 10) == 0 and epoch != 0:
+            net.save_parameters("./models/%s-cifar10-epoch-%d.params" %
+                                (datetime.strftime(datetime.now(), '%Y%m%d%H%M'), epoch))
 
     net.export("./models/cifar10-model-%s" % datetime.strftime(datetime.now(), '%Y%m%d%H%M'))
     sw.close()
-    logging.info("Train End.")
+    logger.info("Train End.")
 
 
 def validate(net, val_data, ctx):
