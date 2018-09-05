@@ -15,23 +15,16 @@ The code is inspired by the gluon resnet implementation and https://github.com/l
 wget http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz
 ```
 
-**Reorganize data**  
-The command below will save the images to 10 dirs. Then we could use `ImageFolderDataset` to load the dataset.
-
-```shell
-python ./utils/reorg_cifar10_data.py --data-root /path/to/uncompressed/data --output-root /path/to/train/test/data
-```
-
 **Training**   
 
 ```shell
-python ./train.py --data-root /path/to/train/test/data --workers 4 --num-gpus 2 --iterations 160000 
+python3 train.py --data-root /path/to/cifar-10/data --batch-size 128 --epochs 200 --lr-steps 80,120
 ```
 
-Most parameters is set to keep same with settings in paper. To view the training process, tensorboard is required.
+To view the training process, tensorboard is required.
  
 ```shell
-tensorboard --logdir=./log/board/cifar10_20180831183421 --host=0.0.0.0 --port=8888
+tensorboard --logdir=./log/board/cifar10_201808311834 --host=0.0.0.0 --port=8888
 ```
 
 |Results|Accuracy|Loss |Val Accuracy|
