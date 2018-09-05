@@ -56,6 +56,8 @@ class AttentionBlock(nn.HybridBlock):
             self.mask_branch = _MaskBlock(channels, r, out_size, stage, prefix='mask_')
 
             self.post = nn.HybridSequential(prefix='post_')
+            for i in range(p):
+                self.post.add(BottleneckV2(channels, 1, prefix='%d_' % i))
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.pre(x)
