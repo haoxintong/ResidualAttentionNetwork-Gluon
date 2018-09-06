@@ -45,19 +45,19 @@ class AttentionBlock(nn.HybridBlock):
         """
         super().__init__(**kwargs)
         with self.name_scope():
-            self.pre = nn.HybridSequential(prefix='pre_')
+            self.pre = nn.HybridSequential()
             for i in range(p):
-                self.pre.add(BottleneckV2(channels, 1, prefix='%d_' % i))
+                self.pre.add(BottleneckV2(channels, 1, prefix='pre_%d_' % i))
 
-            self.trunk_branch = nn.HybridSequential(prefix='trunk_')
+            self.trunk_branch = nn.HybridSequential()
             for i in range(t):
-                self.trunk_branch.add(BottleneckV2(channels, 1, prefix='%d_' % i))
+                self.trunk_branch.add(BottleneckV2(channels, 1, prefix='trunk_%d_' % i))
 
             self.mask_branch = _MaskBlock(channels, r, out_size, stage, prefix='mask_')
 
-            self.post = nn.HybridSequential(prefix='post_')
+            self.post = nn.HybridSequential()
             for i in range(p):
-                self.post.add(BottleneckV2(channels, 1, prefix='%d_' % i))
+                self.post.add(BottleneckV2(channels, 1, prefix='post_%d_' % i))
 
     def hybrid_forward(self, F, x, *args, **kwargs):
         x = self.pre(x)
@@ -87,42 +87,42 @@ class _MaskBlock(nn.HybridBlock):
     def _make_layers(self, channels, r, stage, out_size):
         if stage <= 1:
             self.down_sample_1 = nn.MaxPool2D(3, 2, 1)
-            self.down_res_unit_1 = nn.HybridSequential(prefix="down_res1_")
+            self.down_res_unit_1 = nn.HybridSequential()
             for i in range(r):
-                self.down_res_unit_1.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.down_res_unit_1.add(BottleneckV2(channels, 1, prefix="down_res1_%d_" % i))
             self.skip_connection_1 = BottleneckV2(channels, 1)
 
-            self.up_res_unit_1 = nn.HybridSequential(prefix="up_res1_")
+            self.up_res_unit_1 = nn.HybridSequential()
             for i in range(r):
-                self.up_res_unit_1.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.up_res_unit_1.add(BottleneckV2(channels, 1, prefix="up_res1_%d_" % i))
             self.up_sample_1 = _UpSampleBlock(out_size)
             out_size = out_size // 2
 
         if stage <= 2:
             self.down_sample_2 = nn.MaxPool2D(3, 2, 1)
-            self.down_res_unit_2 = nn.HybridSequential(prefix="down_res2_")
+            self.down_res_unit_2 = nn.HybridSequential()
             for i in range(r):
-                self.down_res_unit_2.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.down_res_unit_2.add(BottleneckV2(channels, 1, prefix="down_res2_%d_" % i))
             self.skip_connection_2 = BottleneckV2(channels, 1)
 
-            self.up_res_unit_2 = nn.HybridSequential(prefix="up_res2_")
+            self.up_res_unit_2 = nn.HybridSequential()
             for i in range(r):
-                self.up_res_unit_2.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.up_res_unit_2.add(BottleneckV2(channels, 1, prefix="up_res2_%d_" % i))
             self.up_sample_2 = _UpSampleBlock(out_size)
             out_size = out_size // 2
 
         if stage <= 3:
             self.down_sample_3 = nn.MaxPool2D(3, 2, 1)
-            self.down_res_unit_3 = nn.HybridSequential(prefix="down_res3_")
+            self.down_res_unit_3 = nn.HybridSequential()
             for i in range(r):
-                self.down_res_unit_3.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.down_res_unit_3.add(BottleneckV2(channels, 1, prefix="down_res3_%d_" % i))
 
-            self.up_res_unit_3 = nn.HybridSequential(prefix="up_res3_")
+            self.up_res_unit_3 = nn.HybridSequential()
             for i in range(r):
-                self.up_res_unit_3.add(BottleneckV2(channels, 1, prefix="%d_" % i))
+                self.up_res_unit_3.add(BottleneckV2(channels, 1, prefix="up_res3_%d_" % i))
             self.up_sample_3 = _UpSampleBlock(out_size)
 
-        self.output = nn.HybridSequential(prefix="output_")
+        self.output = nn.HybridSequential()
         self.output.add(nn.BatchNorm(),
                         nn.Activation('relu'),
                         nn.Conv2D(channels, kernel_size=1, strides=1, use_bias=False),
