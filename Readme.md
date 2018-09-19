@@ -24,9 +24,9 @@ tensorboard --logdir=./log/board/cifar10_201808311834 --host=0.0.0.0 --port=8888
 |Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|
    
 The test error reported in paper is **4.99%** for `Attention-92`, here I got **4.76%**. The author does not give the 
-architecture of the cifar10-AttentionNet, so I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.
-In previous version, the feature map is down sampling to 16x16 before stage1, it can only achieve about 0.93 on test set. 
-Following Teng's implementation, before stage1 the feature map size is still 32x32, and it got an accuracy improvement of 0.02.
+architecture of cifar10-AttentionNet, so I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.  
+In previous version, the feature map is down sampled to 16x16 before stage1, it can only achieve about 0.93 on test set. 
+Following Teng's implementation, the feature map size is still 32x32, and it gets an accuracy improvement of 2%.
 
  
 ### ImageNet
