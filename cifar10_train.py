@@ -157,9 +157,9 @@ def train(args):
                     'val accuracy: %.6f, val loss: %.6f, time: %.1f'
                     % (epoch, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
         if (epoch % 10) == 0 and epoch != 0:
-            net.save_parameters("./models/attention%d-cifar10-epoch-%d.params" % (args.num_gpus, epoch))
+            net.save_parameters("./models/attention%d-cifar10-epoch-%d.params" % (args.num_layers, epoch))
 
-    net.export("./models/attention%d-cifar10-%s" % (args.num_gpus, datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
+    net.export("./models/attention%d-cifar10-%s" % (args.num_layers, datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
     sw.close()
     logger.info("Train End.")
 

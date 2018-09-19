@@ -18,10 +18,10 @@ To view the training process, tensorboard is required.
 tensorboard --logdir=./log/board/cifar10_201808311834 --host=0.0.0.0 --port=8888
 ```
 
-|Results|Accuracy|Loss |Test Accuracy|
-|:---:  |:---:   |:---:|:---:       |
-|Attention56|<img src="data/attention56-cifar10-accuracy.png"/>|<img src="data/attention56-cifar10-loss.png"/>|0.9310|
-|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|
+|Results|Accuracy|Loss |Test Accuracy|Official Report|
+|:---:  |:---:   |:---:|:---:       |:---:       |
+|Attention56|<img src="data/cifar10-attention56-accuracy.png"/>|<img src="data/cifar10-attention56-loss.png"/>|0.9453|0.9448|
+|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|0.9501|
    
 The test error reported in paper is **4.99%** for `Attention-92`, here I got **4.76%**. The author does not give the 
 architecture of cifar10-AttentionNet, so I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.  
