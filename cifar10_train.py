@@ -143,7 +143,7 @@ def train(args):
             for l in losses:
                 ag.backward(l)
 
-            trainer.step(args.batch_size)
+            trainer.step(batch_size)
             metric.update(labels, outputs)
 
             train_loss += sum([l.mean().asscalar() for l in losses]) / len(losses)
