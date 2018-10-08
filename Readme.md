@@ -9,6 +9,8 @@ python3.5+, mxnet-1.2.1+, MXBoard
 ## Inspiration
 The code is inspired by the gluon resnet implementation and https://github.com/liudaizong/Residual-Attention-Network.
 
+Mixup data augmentation use GluonCV for reference.     
+
 ## Train
 GPU is preferred.
 ### Cifar10
@@ -18,10 +20,10 @@ To view the training process, tensorboard is required.
 tensorboard --logdir=./log/board/cifar10_201808311834 --host=0.0.0.0 --port=8888
 ```
 
-|Results|Accuracy|Loss |Test Accuracy|Official Report|
-|:---:  |:---:   |:---:|:---:       |:---:       |
-|Attention56|<img src="data/cifar10-attention56-accuracy.png"/>|<img src="data/cifar10-attention56-loss.png"/>|0.9453|0.9448|
-|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|0.9501|
+|Results|Accuracy|Loss |Test Accuracy|Test Accuracy(using mixup)|Official Report|
+|:---:  |:---:   |:---:|:---:        |:---:                     |:---:          |
+|Attention56|<img src="data/cifar10-attention56-accuracy.png"/>|<img src="data/cifar10-attention56-loss.png"/>|0.9453|0.9606|0.9448|
+|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|-|0.9501|
    
 The test error reported in paper is **4.99%** for `Attention-92`, here I got **4.76%**. The author does not give the 
 architecture of cifar10-AttentionNet, so I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.  
@@ -36,7 +38,7 @@ Emmmm....
 - [x] Training scripts for cifar10.  
 Just use this command and you can get accuracy over 0.95 on cifar10:  
 ```shell
-python3 cifar10_train.py --num-layers 92 --num-gpus 1 --workers 2 --batch-size 64 --epochs 200 --lr-steps 80,120
+python3 cifar10_train.py --num-layers 92 --num-gpus 1 --workers 2 --batch-size 64 --epochs 200 --lr-steps 80,120 --mix-up True --alpha 1.0
 ```
 It can be easily applied to other tasks.
 
@@ -58,3 +60,4 @@ attention_net_spec = {56: ([1, 2, 1], [1, 1, 1]),
 ## References
 1. Residual Attention Network for Image Classification [1704.06904](https://arxiv.org/abs/1704.06904)
 1. MXNet Documentation and Tutorials [zh.gluon.ai/](http://zh.gluon.ai/)
+1. GluonCV Classification [gluon-cv.mxnet.io/model_zoo/classification.html](https://gluon-cv.mxnet.io/model_zoo/classification.html)

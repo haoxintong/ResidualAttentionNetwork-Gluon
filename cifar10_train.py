@@ -26,6 +26,7 @@ import time
 import logging
 import argparse
 import mxnet as mx
+import numpy as np
 from datetime import datetime
 from mxnet import image, nd, gluon, metric as mtc, autograd as ag
 from mxboard import SummaryWriter
@@ -56,11 +57,18 @@ def parse_args():
                         help='weight decay (default: 1e-4)')
     parser.add_argument('--lr-steps', default='80,120', type=str,
                         help='list of learning rate decay steps as in str')
-    args = parser.parse_args()
-    return args
+    parser.add_argument('--mix-up', default=False, type=bool,
+                        help='if use mix-up method to train net')
+    parser.add_argument('--alpha', default=1.0, type=float,
+                        help='hyper param of mix-up')
+    parser.add_argument('--save-period', type=int, default=10,
+                        help='period in epoch of model saving.')
+    _args = parser.parse_args()
+    return _args
 
 
 os.environ['MXNET_GLUON_REPO'] = 'https://apache-mxnet.s3.cn-north-1.amazonaws.com.cn/'
+os.environ['MXNET_ENABLE_GPU_P2P'] = '0'
 
 train_auglist = image.CreateAugmenter(data_shape=(3, 32, 32),
                                       rand_crop=True, rand_mirror=True,
@@ -69,6 +77,8 @@ train_auglist = image.CreateAugmenter(data_shape=(3, 32, 32),
 val_auglist = image.CreateAugmenter(data_shape=(3, 32, 32),
                                     mean=nd.array([0.485, 0.456, 0.406]),
                                     std=nd.array([0.229, 0.224, 0.225]))
+args = parse_args()
+use_mix_up = args.mix_up
 
 
 def transform_train(data, label):
@@ -77,6 +87,8 @@ def transform_train(data, label):
     for aug in train_auglist:
         im = aug(im)
     im = nd.transpose(im, (2, 0, 1))
+    if use_mix_up:
+        label = nd.one_hot(nd.array([label]), 10)[0]
     return im, label
 
 
@@ -88,7 +100,7 @@ def transform_val(data, label):
     return im, label
 
 
-def train(args):
+def train():
     # load_data
     batch_size = args.batch_size * max(args.num_gpus, 1)
     train_set = gluon.data.vision.CIFAR10(train=True, transform=transform_train)
@@ -105,9 +117,8 @@ def train(args):
 
     trainer = gluon.Trainer(net.collect_params(), 'sgd',
                             {'learning_rate': args.lr, 'momentum': args.momentum, 'wd': args.wd})
-    cross_entropy = gluon.loss.SoftmaxCrossEntropyLoss()
-
-    metric = mtc.Accuracy()
+    cross_entropy = gluon.loss.SoftmaxCrossEntropyLoss(sparse_label=not use_mix_up)
+    train_metric = mtc.Accuracy() if not use_mix_up else mx.metric.RMSE()
 
     # set log output
     logger = logging.getLogger('TRAIN')
@@ -119,44 +130,55 @@ def train(args):
                                            % datetime.strftime(datetime.now(), '%Y%m%d%H%M')), verbose=False)
 
     # record the training hyper parameters
-    logger.info("--num-layers {} --epochs {} --batch-size {} --lr {} --lr-steps {} --momentum {} --wd {}"
-                .format(args.num_layers, args.epochs, args.batch_size, args.lr, args.lr_steps, args.momentum, args.wd))
+    logger.info(args)
     lr_counter = 0
     lr_steps = [int(s) for s in args.lr_steps.strip().split(',')]
     num_batch = len(train_data)
-    for epoch in range(args.epochs+1):
+    epochs = args.epochs + 1
+    alpha = args.alpha
+
+    for epoch in range(epochs):
         if epoch == lr_steps[lr_counter]:
             trainer.set_learning_rate(trainer.learning_rate * 0.1)
             if lr_counter + 1 < len(lr_steps):
                 lr_counter += 1
         train_loss = 0
-        metric.reset()
+        train_metric.reset()
         tic = time.time()
         for i, batch in enumerate(train_data):
-
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
+
+            if use_mix_up:
+                lam = np.random.beta(alpha, alpha)
+                if epoch >= epochs - 30:
+                    lam = 1
+                data = [lam * X + (1 - lam) * X[::-1] for X in data]
+                labels = [lam * Y + (1 - lam) * Y[::-1] for Y in labels]
 
             with ag.record():
                 outputs = [net(X) for X in data]
                 losses = [cross_entropy(yhat, y) for yhat, y in zip(outputs, labels)]
+
             for l in losses:
                 ag.backward(l)
 
             trainer.step(batch_size)
-            metric.update(labels, outputs)
+            train_metric.update(labels, outputs)
 
             train_loss += sum([l.mean().asscalar() for l in losses]) / len(losses)
 
-        _, train_acc = metric.get()
+        _, train_acc = train_metric.get()
         train_loss /= num_batch
         val_acc, val_loss = validate(net, val_data, ctx)
         sw.add_scalar("AttentionNet/Loss", {'train': train_loss, 'val': val_loss}, epoch)
-        sw.add_scalar("AttentionNet/Accuracy", {'train': train_acc, 'val': val_acc}, epoch)
-        logger.info('[Epoch %d] train accuracy: %.6f, train loss: %.6f | '
+
+        sw.add_scalar("AttentionNet/Metric", {'train': train_acc, 'val': val_acc}, epoch)
+        logger.info('[Epoch %d] train metric: %.6f, train loss: %.6f | '
                     'val accuracy: %.6f, val loss: %.6f, time: %.1f'
                     % (epoch, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
-        if (epoch % 10) == 0 and epoch != 0:
+
+        if (epoch % args.save_period) == 0 and epoch != 0:
             net.save_parameters("./models/attention%d-cifar10-epoch-%d.params" % (args.num_layers, epoch))
 
     net.export("./models/attention%d-cifar10-%s" % (args.num_layers, datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
@@ -182,4 +204,4 @@ def validate(net, val_data, ctx):
 
 
 if __name__ == '__main__':
-    train(parse_args())
+    train()
