@@ -22,11 +22,11 @@ tensorboard --logdir=./log/board/cifar10_201808311834 --host=0.0.0.0 --port=8888
 
 |Results|Accuracy|Loss |Test Accuracy|Test Accuracy(using mixup)|Official Report|
 |:---:  |:---:   |:---:|:---:        |:---:                     |:---:          |
-|Attention56|<img src="data/cifar10-attention56-accuracy.png"/>|<img src="data/cifar10-attention56-loss.png"/>|0.9453|0.9606|0.9448|
-|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|-|0.9501|
+|Attention56|<img src="data/cifar10-attention56-accuracy.png"/>|<img src="data/cifar10-attention56-loss.png"/>|0.9499|0.9581|0.9448|
+|Attention92|<img src="data/cifar10-attention92-accuracy.png"/>|<img src="data/cifar10-attention92-loss.png"/>|0.9524|0.9608|0.9501|
    
-The test error reported in paper is **4.99%** for `Attention-92`, here I got **4.76%**. The author does not give the 
-architecture of cifar10-AttentionNet, so I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.  
+The author does not give the architecture of cifar10-AttentionNet, 
+I follow the implementation of https://github.com/tengshaofeng/ResidualAttentionNetwork-pytorch.  
 In previous version, the feature map is down sampled to 16x16 before stage1, it can only achieve about 0.93 on test set. 
 Following Teng's implementation, the feature map size is still 32x32, and it gets an accuracy improvement of 2%.
 
@@ -38,7 +38,7 @@ Emmmm....
 - [x] Training scripts for cifar10.  
 Just use this command and you can get accuracy over 0.95 on cifar10:  
 ```shell
-python3 cifar10_train.py --num-layers 92 --num-gpus 1 --workers 2 --batch-size 64 --epochs 200 --lr-steps 80,120 --mix-up True --alpha 1.0
+python3 cifar10_train.py --num-layers 92 --num-gpus 1 --workers 2 --batch-size 64 --epochs 200 --lr-steps 80,120 --mix-up 1 --alpha 1.0
 ```
 It can be easily applied to other tasks.
 

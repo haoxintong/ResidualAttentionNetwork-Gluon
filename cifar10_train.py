@@ -57,8 +57,8 @@ def parse_args():
                         help='weight decay (default: 1e-4)')
     parser.add_argument('--lr-steps', default='80,120', type=str,
                         help='list of learning rate decay steps as in str')
-    parser.add_argument('--mix-up', default=False, type=bool,
-                        help='if use mix-up method to train net')
+    parser.add_argument('--mix-up', default=0, type=int,
+                        help='if use mix-up method to train net, 0 for False')
     parser.add_argument('--alpha', default=1.0, type=float,
                         help='hyper param of mix-up')
     parser.add_argument('--save-period', type=int, default=10,
@@ -78,7 +78,7 @@ val_auglist = image.CreateAugmenter(data_shape=(3, 32, 32),
                                     mean=nd.array([0.485, 0.456, 0.406]),
                                     std=nd.array([0.229, 0.224, 0.225]))
 args = parse_args()
-use_mix_up = args.mix_up
+use_mix_up = True if args.mix_up else False
 
 
 def transform_train(data, label):
@@ -121,13 +121,16 @@ def train():
     train_metric = mtc.Accuracy() if not use_mix_up else mx.metric.RMSE()
 
     # set log output
+    train_mode = 'MixUP' if use_mix_up else 'Vanilla'
     logger = logging.getLogger('TRAIN')
     logger.setLevel("INFO")
     logger.addHandler(logging.StreamHandler())
-    logger.addHandler(logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_%s.log')
-                                          % datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
-    sw = SummaryWriter(logdir=os.path.join(args.log_dir, 'board/cifar10_%s'
-                                           % datetime.strftime(datetime.now(), '%Y%m%d%H%M')), verbose=False)
+    logger.addHandler(logging.FileHandler(os.path.join(args.log_dir, 'text/cifar10_attention%d_%s_%s.log'
+                                                       % (args.num_layers, train_mode,
+                                                          datetime.strftime(datetime.now(), '%Y%m%d%H%M')))))
+    sw = SummaryWriter(logdir=os.path.join(args.log_dir, 'board/cifar10_attention%d_%s_%s'
+                                           % (args.num_layers, train_mode,
+                                              datetime.strftime(datetime.now(), '%Y%m%d%H%M'))), verbose=False)
 
     # record the training hyper parameters
     logger.info(args)
@@ -136,6 +139,7 @@ def train():
     num_batch = len(train_data)
     epochs = args.epochs + 1
     alpha = args.alpha
+    max_accuracy = 0.9
 
     for epoch in range(epochs):
         if epoch == lr_steps[lr_counter]:
@@ -149,10 +153,8 @@ def train():
             data = gluon.utils.split_and_load(batch[0], ctx_list=ctx, batch_axis=0, even_split=False)
             labels = gluon.utils.split_and_load(batch[1], ctx_list=ctx, batch_axis=0, even_split=False)
 
-            if use_mix_up:
+            if use_mix_up and epoch < epochs - 20:
                 lam = np.random.beta(alpha, alpha)
-                if epoch >= epochs - 30:
-                    lam = 1
                 data = [lam * X + (1 - lam) * X[::-1] for X in data]
                 labels = [lam * Y + (1 - lam) * Y[::-1] for Y in labels]
 
@@ -171,17 +173,22 @@ def train():
         _, train_acc = train_metric.get()
         train_loss /= num_batch
         val_acc, val_loss = validate(net, val_data, ctx)
-        sw.add_scalar("AttentionNet/Loss", {'train': train_loss, 'val': val_loss}, epoch)
 
+        sw.add_scalar("AttentionNet/Loss", {'train': train_loss, 'val': val_loss}, epoch)
         sw.add_scalar("AttentionNet/Metric", {'train': train_acc, 'val': val_acc}, epoch)
         logger.info('[Epoch %d] train metric: %.6f, train loss: %.6f | '
                     'val accuracy: %.6f, val loss: %.6f, time: %.1f'
                     % (epoch, train_acc, train_loss, val_acc, val_loss, time.time() - tic))
 
         if (epoch % args.save_period) == 0 and epoch != 0:
-            net.save_parameters("./models/attention%d-cifar10-epoch-%d.params" % (args.num_layers, epoch))
+            net.save_parameters("./models/attention%d-cifar10-epoch-%d-%s.params"
+                                % (args.num_layers, epoch, train_mode))
 
-    net.export("./models/attention%d-cifar10-%s" % (args.num_layers, datetime.strftime(datetime.now(), '%Y%m%d%H%M')))
+        if val_acc > max_accuracy:
+            net.save_parameters("./models/best-%f-attention%d-cifar10-epoch-%d-%s.params"
+                                % (val_acc, args.num_layers, epoch, train_mode))
+            max_accuracy = val_acc
+
     sw.close()
     logger.info("Train End.")
 
