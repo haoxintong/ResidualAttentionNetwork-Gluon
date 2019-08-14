@@ -30,7 +30,42 @@ I follow the implementation of https://github.com/tengshaofeng/ResidualAttention
 In previous version, the feature map is down sampled to 16x16 before stage1, it can only achieve about 0.93 on test set. 
 Following Teng's implementation, the feature map size is still 32x32, and it gets an accuracy improvement of 2%.
 
- 
+**Tricks**  
+I followed the tricks in [1812.01187](https://arxiv.org/abs/1812.01187), 
+the pipeline is training res-att-net56 on 8 1080ti GPUs with nvidia-dali and BytePS, 
+which allow to finish in 1 hour for cifar10.
+
+|batch_size|lr|warmup|mix_up|alpha|epsilon|max_accuracy|
+|:---|:---|:---|:---|:---|:---|:---|
+| 128|2.0|5|0|0.2|0.0|0.956631 |
+| 128|1.5|5|0|0.2|0.0|0.955929 |
+| 128|1.0|5|0|0.2|0.0|0.954527 |
+| 128|2.0|5|1|0.2|0.0|0.959135 |
+| 128|2.0|5|1|0.4|0.0|0.962240 |
+| 128|2.0|5|1|1.0|0.0|**0.962941** |
+| 128|2.0|5|1|0.2|0.1|0.961839 |
+| 128|2.0|5|1|0.2|0.01|0.961038 |
+| 128|2.0|10|1|0.2|0.1|0.959635 |
+| 128|2.0|10|1|1.0|0.1|**0.963742** |
+| 128|2.0|10|1|0.2|0.01|0.959235 |
+| 64|2.0|5|0|0.2|0.0|0.955729 |
+| 64|1.5|5|0|0.2|0.0|0.956831 |
+| 64|1.0|5|0|0.2|0.0|0.955812 |
+| 64|2.0|5|1|0.2|0.0|0.955829 |
+| 64|2.0|5|1|0.4|0.0|0.958734 |
+| 64|2.0|5|1|1.0|0.0|0.958333 |
+| 64|2.0|5|1|0.2|0.1|0.959535 |
+| 64|2.0|5|1|0.2|0.01|0.957632 |
+| 64|2.0|10|1|0.2|0.1|0.958534 |
+| 64|2.0|10|1|1.0|0.1|0.957833 |
+| 64|2.0|10|1|0.2|0.01|0.955829 |
+
+Note:
+- `alpha` control how we generate the mix up data and label.
+- `epsilon` is related to label smoothing.
+
+The code will be released when I finish all the experiments.
+
 ### ImageNet
 Emmmm....
 
@@ -53,8 +88,8 @@ attention_net_spec = {56: ([1, 2, 1], [1, 1, 1]),
                       236: ([1, 2, 1], [6, 6, 6]),
                       452: ([2, 4, 3], [6, 6, 6])}
 ``` 
-- [ ] Visualization of soft attention mask 
-- [ ] Attention module with other basic network unit  
+- [ ] ~~Visualization of soft attention mask~~
+- [ ] ~~Attention module with other basic network unit~~  
 ...
 
 ## References
