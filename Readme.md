@@ -35,6 +35,8 @@ I followed the tricks in [1812.01187](https://arxiv.org/abs/1812.01187),
 the pipeline is training res-att-net56 on 8 1080ti GPUs with nvidia-dali and BytePS, 
 which allow to finish in 1 hour for cifar10.
 
+The result below can be reproduced by running `scripts/train_bps.sh`.
+
 |Layers|batch_size|lr|warmup|mix_up|alpha|epsilon|max_accuracy|
 |:---|:---|:---|:---|:---|:---|:---|:---|
 |56| 1024|2.0|5|False|0.2|-|0.956631 |
@@ -47,7 +49,7 @@ which allow to finish in 1 hour for cifar10.
 |56| 1024|2.0|5|True|0.2|0.01|0.961038 |
 |56| 1024|2.0|10|True|0.2|0.1|0.959635 |
 |56| 1024|2.0|10|True|1.0|0.1|**0.963742** |
-|56| 1024|1.6|10|True|1.0|0.0|**0.965044** |
+|56| 1024|1.6|10|True|1.0|-|**0.965044** |
 |56| 1024|2.0|10|True|0.2|0.01|0.959235 |
 |56| 512|2.0|5|False|0.2|-|0.955729 |
 |56| 512|1.5|5|False|0.2|-|0.956831 |
@@ -67,7 +69,6 @@ Note:
 - `alpha` control how we generate the mix up data and label.
 - `epsilon` is related to label smoothing.
 
-The code will be released when I finish all the experiments.
 
 ### ImageNet
 Emmmm....
